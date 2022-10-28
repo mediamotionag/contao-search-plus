@@ -1,8 +1,8 @@
 # Search Plus
 
-> **Notice:** This bundle is not activly maintained anymore! Please refere to out [Search Bundle](https://github.com/heimrichhannot/contao-search-bundle) for contao 4 and new features!
+> **Notice:** This is a quick fix for the pdf search under Contao 4.13 and PHP 7.4 (not 8.1)
 
-Extend the contao core search, to achieve more features like pdf search.
+This bundle solves the issues found in the original bundle https://github.com/heimrichhannot/contao-search_plus for Contao 4.13.
 
 ## Features
 
@@ -32,18 +32,18 @@ Add following line to your composer.json required section:
 
     "heimrichhannot/contao-search_plus" : "^1.0"
     
-You can also add the package via commandline:
+And add the forked repo as a repository too:
 
-    composer require heimrichhannot/contao-search_plus
-
-### Templates
-
-~~You need to add two templates: `mod_search_simple` and `mod_search_advanced`. In your `mod_search` template you need to add `<?php echo $this->form ?>` to output the correct search form template.~~ No needed anymore for contao 4.x from version 1.2. 
+```
+"repositories": [
+    {
+        "type": "git",
+        "url" : "https://github.com/mediamotionag/contao-search-plus"
+    }
+    
+],
+```
 
 ### Settings
 
 You can disable PDF search on the Contao setting page. If enabled, an option to set the maximum pdf size to parse, is given.
-
-## Credits
-
-The contao 4.x compatibility changes were sponsored by fanthomas communications.
