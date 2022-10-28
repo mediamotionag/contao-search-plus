@@ -70,7 +70,7 @@ class Search
 
             static::addToPDFSearchIndex($strFile, $arrParentSet);
         }
-    }
+            }
 
     protected static function addToPDFSearchIndex($strFile, $arrParentSet)
     {
@@ -79,13 +79,13 @@ class Search
         if (!Validator::isValidPDF($objFile)) {
             return false;
         }
-
+    
         $objDatabase = \Database::getInstance();
 
         $objModel = $objFile->getModel();
 
         $arrMeta = \Frontend::getMetaData($objModel->meta, $arrParentSet['language']);
-
+        
         // Use the file name as title if none is given
         if ($arrMeta['title'] == '') {
             $arrMeta['title'] = specialchars($objFile->basename);
@@ -114,11 +114,11 @@ class Search
             'language'  => $arrParentSet['language'],
             'mime'      => $objFile->mime
         ];
-
+                
         // Return if the file is indexed and up to date
         $objIndex = $objDatabase->prepare("SELECT * FROM tl_search WHERE pid=? AND checksum=?")
             ->execute($arrSet['pid'], $arrSet['checksum']);
-
+            
 
         // there are already indexed files containing this file (same checksum and filename)
         if ($objIndex->numRows) {
@@ -139,6 +139,7 @@ class Search
                 // parse only for the first occurrence
                 $parser     = new \Smalot\PdfParser\Parser();
                 $objPDF     = $parser->parseFile($strFile);
+                
                 $strContent = $objPDF->getText();
 
             } catch (\Exception $e) {
@@ -152,7 +153,9 @@ class Search
 
         // save only first 2000 characters for performance reasons
         $arrSet['text'] = substr($strContent, 0, 2000);
-
+        
+        $arrSet['text'] = mb_substr($arrSet['text'],0,156,"UTF-8");
+                
         // Update an existing old entry
         if ($objIndex->count() > 0 && $objIndex->pid == $arrSet['pid']) {
             $objDatabase->prepare("UPDATE tl_search %s WHERE id=?")
@@ -161,9 +164,8 @@ class Search
 
             $intInsertId = $objIndex->id;
         } else {
-            $objInsertStmt = $objDatabase->prepare("INSERT INTO tl_search %s")
-                ->set($arrSet)
-                ->execute();
+            $objInsertStmt = $objDatabase->prepare("INSERT INTO tl_search %s")->set($arrSet)->execute();
+            
 
             $intInsertId = $objInsertStmt->insertId;
         }
@@ -238,11 +240,14 @@ class Search
 
         // Create new index
         $errors = [];
+        $arrIndexes = array();
+
         foreach ($arrIndex as $k => $v) {
             try
             {
-                $objDatabase->prepare("INSERT INTO tl_search_index (pid, word, relevance, language) VALUES (?, ?, ?, ?)")
-                    ->execute($pid, $k, $v, $arrSet['language']);
+                $objInsertStmt = $objDatabase->prepare("INSERT INTO tl_search_term (term, documentFrequency) VALUES (?, ?)")
+                    ->execute($k, $v);
+                $arrIndexes[$objInsertStmt->insertId] = $v;
             } catch (\Exception $exception) {
                 $errors[] = 'pid: '.$pid.', word: '.$k.', relevance: '.$v.', language: '.$arrSet['language'];
             }
@@ -250,6 +255,20 @@ class Search
         if (!empty($errors)) {
             System::log("Error while updating search index with following data-sets: (".implode("), (", $errors).')', __METHOD__, TL_ERROR);
         }
+        
+        foreach ($arrIndexes as $k => $v) {
+            try
+            {
+                $objDatabase->prepare("INSERT INTO tl_search_index (pid, termId, relevance) VALUES (?, ?, ?)")
+                    ->execute($pid, $k, $v);
+            } catch (\Exception $exception) {
+                $errors[] = 'pid: '.$pid.', word: '.$k.', relevance: '.$v.', language: '.$arrSet['language'];
+            }
+        }
+        if (!empty($errors)) {
+            System::log("Error while updating search index with following data-sets: (".implode("), (", $errors).')', __METHOD__, TL_ERROR);
+        }
+        
     }
 
 
