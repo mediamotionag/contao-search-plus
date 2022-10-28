@@ -239,36 +239,41 @@ class Search
             ->execute($pid);
 
         // Create new index
-        $errors = [];
         $arrIndexes = array();
 
         foreach ($arrIndex as $k => $v) {
-            try
-            {
-                $objInsertStmt = $objDatabase->prepare("INSERT INTO tl_search_term (term, documentFrequency) VALUES (?, ?)")
-                    ->execute($k, $v);
-                $arrIndexes[$objInsertStmt->insertId] = $v;
-            } catch (\Exception $exception) {
-                $errors[] = 'pid: '.$pid.', word: '.$k.', relevance: '.$v.', language: '.$arrSet['language'];
+            
+            $objTerm = $objDatabase->prepare("SELECT * FROM tl_search_term WHERE term=?")->execute($k);
+            $arrResult = $objTerm->fetchAllAssoc();
+            
+            if(is_array($arrResult) && count($arrResult) > 0){
+                $intID = $arrResult[0]['id'];
+                $arrIndexes[$intID] = $v;
+            } else {
+                try
+                {
+                    $objInsertStmt = $objDatabase->prepare("INSERT INTO tl_search_term (term, documentFrequency) VALUES (?, ?)")
+                        ->execute($k, $v);
+                    $arrIndexes[$objInsertStmt->insertId] = $v;
+                } catch (\Exception $exception) {
+                    System::log("Error while updating search term table: ". $exception->getMessage(), __METHOD__, TL_ERROR);
+                }
             }
-        }
-        if (!empty($errors)) {
-            System::log("Error while updating search index with following data-sets: (".implode("), (", $errors).')', __METHOD__, TL_ERROR);
+            
         }
         
-        foreach ($arrIndexes as $k => $v) {
-            try
-            {
-                $objDatabase->prepare("INSERT INTO tl_search_index (pid, termId, relevance) VALUES (?, ?, ?)")
-                    ->execute($pid, $k, $v);
-            } catch (\Exception $exception) {
-                $errors[] = 'pid: '.$pid.', word: '.$k.', relevance: '.$v.', language: '.$arrSet['language'];
+        if(is_array($arrIndexes)){
+            foreach ($arrIndexes as $k => $v) {
+                
+                try
+                {
+                    $objDatabase->prepare("INSERT INTO tl_search_index (pid, termId, relevance) VALUES (?, ?, ?)")
+                        ->execute($pid, $k, $v);
+                } catch (\Exception $exception) {
+                    System::log("Error while adding search index item: ". $exception->getMessage(), __METHOD__, TL_ERROR);
+                }
             }
         }
-        if (!empty($errors)) {
-            System::log("Error while updating search index with following data-sets: (".implode("), (", $errors).')', __METHOD__, TL_ERROR);
-        }
-        
     }
 
 
